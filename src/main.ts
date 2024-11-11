@@ -158,8 +158,8 @@ function resample() {
 function motion_update(delta_x: number, delta_y: number) {
     for (let i = 0; i < particles.length; i++)
     {
-        particles[i].x += gaussian_random(delta_x, 0.2);
-        particles[i].y += gaussian_random(delta_y, 0.2);
+        particles[i].x += gaussian_random(delta_x, 0.1);
+        particles[i].y += gaussian_random(delta_y, 0.1);
     }
 }
 
@@ -202,6 +202,9 @@ for (let i = 0; i < PARTICLE_COUNT; i++) {
         weight: normal_dist(x, robot_x, 0.5) * normal_dist(y, robot_y, 0.5)
     });
 }
+particles[0].x = robot_x;
+particles[0].y = robot_y;
+particles[0].weight = normal_dist(robot_x, robot_x, 0.5) * normal_dist(robot_y, robot_y, 0.5);
 
 let odom_x = robot_x;
 let odom_y = robot_y;
@@ -239,8 +242,8 @@ setInterval(() => {
     robot_y += Math.cos(tick / 10);
     robot_theta = -tick / 10 + Math.PI / 2;
 
-    odom_x += gaussian_random(Math.sin(tick / 10), 0.2);
-    odom_y += gaussian_random(Math.cos(tick / 10), 0.2);
+    odom_x += gaussian_random(Math.sin(tick / 10), 0.1);
+    odom_y += gaussian_random(Math.cos(tick / 10), 0.1);
 
     tick++;
 }, 100);
