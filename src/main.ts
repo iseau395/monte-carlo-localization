@@ -2,14 +2,12 @@ import './style.css'
 
 const WIDTH = 144;
 const HEIGHT = 144;
-const RENDER_SCALE = 4;
+const RENDER_SCALE = 10;
 
-const PARTICLE_COUNT = 2000;
+const PARTICLE_COUNT = 1000;
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-  <div>
     <canvas id="canvas" width=${WIDTH * RENDER_SCALE} height=${HEIGHT * RENDER_SCALE} />
-  </div>
 `
 
 const canvas = document.querySelector<HTMLCanvasElement>('#canvas');
@@ -19,8 +17,8 @@ const ctx = canvas?.getContext("2d")!;
 function sensor_sd(distance: number) {
     const variance = Math.max(distance * 0.05, 0.590551);
 
-    // return variance / 3;
-    return variance;
+    return variance / 3;
+    // return variance;
 }
 
 // Get a randon normal according to a gaussian distribution https://stackoverflow.com/questions/25582882/javascript-math-random-normal-distribution-gaussian-bell-curve
@@ -56,20 +54,20 @@ function render(max_weight: number, predicted_x: number, predicted_y: number, od
     for (const particle of particles) {
         ctx.fillStyle = `rgba(0, 0, 255, ${particle.weight / max_weight})`;
         // ctx.fillStyle = `rgba(0, 0, 255, ${1})`;
-        circle(particle.x * RENDER_SCALE, particle.y * RENDER_SCALE, 1);
+        circle(particle.x * RENDER_SCALE, particle.y * RENDER_SCALE, 0.1 * RENDER_SCALE);
     }
 
     ctx.fillStyle = `rgb(0, 255, 0)`;
-    circle(robot_x * RENDER_SCALE, robot_y * RENDER_SCALE, 2);
+    circle(robot_x * RENDER_SCALE, robot_y * RENDER_SCALE, 0.5 * RENDER_SCALE);
     ctx.beginPath();
     ctx.moveTo(robot_x * RENDER_SCALE, robot_y * RENDER_SCALE);
-    ctx.lineTo(robot_x * RENDER_SCALE + Math.cos(robot_theta) * 10, robot_y * RENDER_SCALE + Math.sin(robot_theta) * 10);
+    ctx.lineTo(robot_x * RENDER_SCALE + Math.cos(robot_theta) * 2 * RENDER_SCALE, robot_y * RENDER_SCALE + Math.sin(robot_theta) * 2 * RENDER_SCALE);
     ctx.stroke();
 
     ctx.fillStyle = `rgb(255, 0, 0)`;
-    circle(predicted_x * RENDER_SCALE, predicted_y * RENDER_SCALE, 2);
+    circle(predicted_x * RENDER_SCALE, predicted_y * RENDER_SCALE, 0.5 * RENDER_SCALE);
     ctx.fillStyle = `rgb(255, 0, 255)`;
-    circle(odom_x * RENDER_SCALE, odom_y * RENDER_SCALE, 2);
+    circle(odom_x * RENDER_SCALE, odom_y * RENDER_SCALE, 0.5 * RENDER_SCALE);
 }
 
 // Fake a distance sensor value
@@ -128,7 +126,7 @@ function resample() {
         }
     }
 
-    const full_random_particles = PARTICLE_COUNT * 0.1;
+    const full_random_particles = PARTICLE_COUNT * 0.2;
     // const full_random_particles = 0;
 
     const new_particles = new Array<Particle>();
@@ -249,8 +247,8 @@ setInterval(() => {
     robot_y += Math.cos(tick / 10);
     robot_theta = -tick / 10 + Math.PI / 2;
 
-    odom_x += gaussian_random(Math.sin(tick / 10), 0.1);
-    odom_y += gaussian_random(Math.cos(tick / 10), 0.1);
+    odom_x += gaussian_random(Math.sin(tick / 10), 0.05);
+    odom_y += gaussian_random(Math.cos(tick / 10), 0.05);
 
     tick += 1;
 }, 100);
