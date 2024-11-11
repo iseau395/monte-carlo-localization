@@ -4,12 +4,32 @@ const WIDTH = 144;
 const HEIGHT = 144;
 const RENDER_SCALE = 4;
 
-const PARTICLE_COUNT = 10000;
+const PARTICLE_COUNT = 1000;
 
 function sensor_sd(distance: number) {
     const variance = Math.max(distance * 0.05, 0.590551);
 
-    return variance / 3;
+    // return variance / 3;
+    return variance;
+}
+
+// https://stackoverflow.com/questions/25582882/javascript-math-random-normal-distribution-gaussian-bell-curve
+function gaussian_random(mean: number, stdev: number) {
+    const u = 1 - Math.random(); // Converting [0,1) to (0,1]
+    const v = Math.random();
+    const z = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+    // Transform to the desired mean and standard deviation:
+    return z * stdev + mean;
+}
+
+function normal_dist(x: number, mu: number, sd: number) {
+    const epsilon = 0.0000000000001;
+
+    return  Math.max(
+            (Math.E ** (-1/2 * ((x - mu) / sd) ** 2))
+            /
+            (sd * Math.sqrt(2 * Math.PI)),
+            epsilon);
 }
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
@@ -21,7 +41,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 const canvas = document.querySelector<HTMLCanvasElement>('#canvas');
 const ctx = canvas?.getContext("2d")!;
 
-function render(max_weight: number, predicted_x: number, predicted_y: number) {
+function render(max_weight: number, predicted_x: number, predicted_y: number, odom_x: number, odom_y: number) {
     function circle(x: number, y: number, radius: number) {
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, 2 * Math.PI);
@@ -33,6 +53,7 @@ function render(max_weight: number, predicted_x: number, predicted_y: number) {
     for (const particle of particles)
     {
         ctx.fillStyle = `rgba(0, 0, 255, ${particle.weight / max_weight})`;
+        // ctx.fillStyle = `rgba(0, 0, 255, ${1})`;
         circle(particle.x * RENDER_SCALE, particle.y * RENDER_SCALE, 2);
     }
     
@@ -45,6 +66,8 @@ function render(max_weight: number, predicted_x: number, predicted_y: number) {
     
     ctx.fillStyle = `rgb(255, 0, 0)`;
     circle(predicted_x * RENDER_SCALE, predicted_y * RENDER_SCALE, 2);
+    ctx.fillStyle = `rgb(255, 0, 255)`;
+    circle(odom_x * RENDER_SCALE, odom_y * RENDER_SCALE, 2);
 }
 
 function sensor_value(theta_offset: number) {
@@ -82,34 +105,65 @@ interface Particle {
     weight: number,
 }
 
-const particles = new Array<Particle>();
+let particles = new Array<Particle>();
 
 let robot_x = 48;
 let robot_y = 24;
 let robot_theta = Math.PI / 4 + Math.PI / 6;
 
 function resample() {
-    particles.length = 0;
+    let max_weight = 0;
+    for (const particle of particles)
+    {
+        if (particle.weight > max_weight)
+        {
+            max_weight = particle.weight;
+        }
+    }
 
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-        particles.push({
+    const full_random_particles = PARTICLE_COUNT * 0.3;
+    // const full_random_particles = 0;
+
+    const new_particles = new Array<Particle>();
+
+    let index = Math.floor(Math.random() * particles.length);
+    let beta = 0;
+    for (let i = 0; i < particles.length - full_random_particles; i++)
+    {
+        beta += Math.random() * 2 * max_weight;
+        while (beta > particles[index].weight)
+        {
+            beta -= particles[index].weight;
+            index = (index + 1) % particles.length;
+        }
+
+        new_particles.push({
+            x: particles[index].x,
+            y: particles[index].y,
+            weight: NaN
+        });
+    }
+
+    for (let i = 0; i < full_random_particles; i++) {
+        new_particles.push({
             x: Math.random() * 144,
             y: Math.random() * 144,
             weight: 1
         });
     }
+
+    particles = new_particles;
+}
+
+function motion_update(delta_x: number, delta_y: number) {
+    for (let i = 0; i < particles.length; i++)
+    {
+        particles[i].x += gaussian_random(delta_x, 0.2);
+        particles[i].y += gaussian_random(delta_y, 0.2);
+    }
 }
 
 function sensor_update() {
-    function normal_dist(x: number, mu: number, sd: number) {
-        const epsilon = 0.0000000000001;
-
-        return  Math.max(
-                (Math.E ** (-1/2 * ((x - mu) / sd) ** 2))
-                /
-                (sd * Math.sqrt(2 * Math.PI)),
-                epsilon);
-    }
 
     const sensor_front = sensor_value(0);
     const sensor_left = sensor_value(Math.PI / 2);
@@ -138,7 +192,25 @@ function sensor_update() {
     }
 }
 
+for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const x = Math.random() * 144;
+    const y = Math.random() * 144;
+
+    particles.push({
+        x: x,
+        y: y,
+        weight: normal_dist(x, robot_x, 0.5) * normal_dist(y, robot_y, 0.5)
+    });
+}
+
+let odom_x = robot_x;
+let odom_y = robot_y;
+
+let last_x = robot_x;
+let last_y = robot_y;
+let tick = 0;
 setInterval(() => {
+    motion_update(robot_x - last_x, robot_y - last_y);
     resample();
     sensor_update();
     
@@ -156,7 +228,19 @@ setInterval(() => {
     predicted_x /= total_weight;
     predicted_y /= total_weight;
     
-    render(particles[0].weight, predicted_x, predicted_y);
+    render(particles[0].weight, predicted_x, predicted_y, odom_x, odom_y);
     
-    console.log(Math.sqrt((robot_x - predicted_x) ** 2 +  (robot_y - predicted_y) ** 2));
-}, 1000);
+    // console.log(Math.sqrt((robot_x - predicted_x) ** 2 +  (robot_y - predicted_y) ** 2));
+    
+    last_x = robot_x;
+    last_y = robot_y;
+
+    robot_x += Math.sin(tick / 10);
+    robot_y += Math.cos(tick / 10);
+    robot_theta = -tick / 10 + Math.PI / 2;
+
+    odom_x += gaussian_random(Math.sin(tick / 10), 0.2);
+    odom_y += gaussian_random(Math.cos(tick / 10), 0.2);
+
+    tick++;
+}, 100);
