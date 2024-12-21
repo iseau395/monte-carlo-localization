@@ -171,9 +171,11 @@ function sensor_update() {
     const sensor_front = sensor_value(0);
     const sensor_left = sensor_value(Math.PI / 2);
     const sensor_right = sensor_value(-Math.PI / 2);
+    const sensor_back = sensor_value(Math.PI);
 
     const theta_left = robot_theta + Math.PI / 2;
     const theta_right = robot_theta - Math.PI / 2;
+    const theta_back = robot_theta + Math.PI;
 
     const front_x_predict = Math.cos(robot_theta) > 0 ? 144 - sensor_front * Math.cos(robot_theta) : -sensor_front * Math.cos(robot_theta);
     const front_y_predict = Math.sin(robot_theta) > 0 ? 144 - sensor_front * Math.sin(robot_theta) : -sensor_front * Math.sin(robot_theta);
@@ -184,6 +186,9 @@ function sensor_update() {
     const right_x_predict = Math.cos(theta_right) > 0 ? 144 - sensor_right * Math.cos(theta_right) : -sensor_right * Math.cos(theta_right);
     const right_y_predict = Math.sin(theta_right) > 0 ? 144 - sensor_right * Math.sin(theta_right) : -sensor_right * Math.sin(theta_right);
 
+    const back_x_predict = Math.cos(theta_back) > 0 ? 144 - sensor_back * Math.cos(theta_back) : -sensor_back * Math.cos(theta_back);
+    const back_y_predict = Math.sin(theta_back) > 0 ? 144 - sensor_back * Math.sin(theta_back) : -sensor_back * Math.sin(theta_back);
+
     for (const particle of particles) {
         particle.weight =
             Math.max(normal_dist(particle.x, front_x_predict, sensor_sd(sensor_front)),
@@ -191,7 +196,9 @@ function sensor_update() {
             Math.max(normal_dist(particle.x, left_x_predict, sensor_sd(sensor_left)),
                 normal_dist(particle.y, left_y_predict, sensor_sd(sensor_left))) *
             Math.max(normal_dist(particle.x, right_x_predict, sensor_sd(sensor_right)),
-                normal_dist(particle.y, right_y_predict, sensor_sd(sensor_right)));
+                normal_dist(particle.y, right_y_predict, sensor_sd(sensor_right))) *
+            Math.max(normal_dist(particle.x, back_x_predict, sensor_sd(sensor_back)),
+                normal_dist(particle.y, back_y_predict, sensor_sd(sensor_back)));
     }
 }
 
