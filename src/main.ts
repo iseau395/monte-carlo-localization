@@ -161,8 +161,8 @@ function resample() {
 // Move all the particles based on predicted position change
 function motion_update(delta_x: number, delta_y: number) {
     for (let i = 0; i < particles.length; i++) {
-        particles[i].x += gaussian_random(delta_x, 0.1);
-        particles[i].y += gaussian_random(delta_y, 0.1);
+        particles[i].x += gaussian_random(delta_x, 0.2);
+        particles[i].y += gaussian_random(delta_y, 0.2);
     }
 }
 
@@ -221,12 +221,19 @@ particles[0].weight = normal_dist(robot_x, robot_x, 0.5) * normal_dist(robot_y, 
 let odom_x = robot_x;
 let odom_y = robot_y;
 
+// Predicted position of the robot with mcl
+let mcl_x = robot_x;
+let mcl_y = robot_y;
+
 let last_x = robot_x;
 let last_y = robot_y;
 let tick = 0;
 // The main loop
 setInterval(() => {
-    motion_update(robot_x - last_x, robot_y - last_y);
+    const odom_delta_x = gaussian_random(robot_x - last_x, 0.02);
+    const odom_delta_y = gaussian_random(robot_y - last_y, 0.02);
+
+    motion_update(odom_delta_x, odom_delta_y);
     resample();
     sensor_update();
 
@@ -243,19 +250,22 @@ setInterval(() => {
     predicted_x /= total_weight;
     predicted_y /= total_weight;
 
-    render(particles[0].weight, predicted_x, predicted_y, odom_x, odom_y);
+    mcl_x = ((mcl_x + odom_delta_x) * 0.75 + predicted_x * 0.25);
+    mcl_y = ((mcl_y + odom_delta_y) * 0.75 + predicted_y * 0.25);
 
-    // console.log(Math.sqrt((robot_x - predicted_x) ** 2 +  (robot_y - predicted_y) ** 2));
+    odom_x += odom_delta_x;
+    odom_y += odom_delta_y;
+
+    render(particles[0].weight, mcl_x, mcl_y, odom_x, odom_y);
+
+    console.log(Math.sqrt((robot_x - odom_x) ** 2 +  (robot_y - odom_y) ** 2) - Math.sqrt((robot_x - mcl_x) ** 2 +  (robot_y - mcl_y) ** 2));
 
     last_x = robot_x;
     last_y = robot_y;
 
-    robot_x += Math.sin(tick / 10);
-    robot_y += Math.cos(tick / 10);
-    robot_theta = -tick / 10 + Math.PI / 2;
-
-    odom_x += gaussian_random(Math.sin(tick / 10), 0.05);
-    odom_y += gaussian_random(Math.cos(tick / 10), 0.05);
+    robot_x += 2*Math.sin(tick / 15);
+    robot_y += Math.cos(tick / 15);
+    robot_theta = -tick / 15 + Math.PI / 2;
 
     tick += 1;
-}, 100);
+}, 50);
